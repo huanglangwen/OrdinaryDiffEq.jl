@@ -383,17 +383,17 @@ DiffEqBase.nlsolve_f(integrator::ODEIntegrator) =
 function iip_generate_W(alg,u,uprev,p,t,dt,f,uEltypeNoUnits)
   if alg.nlsolve isa NLNewton
     nf = nlsolve_f(f, alg)
-    islin = f isa Union{ODEFunction,SplitFunction} && islinear(nf.f)
+    islin = nf isa Union{ODEFunction,SplitFunction} && islinear(nf)
     if islin
       J = nf.f
       W = WOperator(f.mass_matrix, dt, J, true)
     else
-      if ArrayInterface.isstructured(f.jac_prototype) || f.jac_prototype isa SparseMatrixCSC
-        J = similar(f.jac_prototype)
+      if nf isa ODEFunction && (ArrayInterface.isstructured(nf.jac_prototype) || nf.jac_prototype isa SparseMatrixCSC)
+        J = similar(nf.jac_prototype)
         W = similar(J)
-      elseif DiffEqBase.has_jac(f) && !DiffEqBase.has_Wfact(f) && f.jac_prototype !== nothing
+      elseif DiffEqBase.has_jac(nf) && !DiffEqBase.has_Wfact(nf) && f.jac_prototype !== nothing
         J = nothing
-        W = WOperator(f, dt, true)
+        W = WOperator(nf, dt, true)
       else
         J = false .* vec(u) .* vec(u)'
         W = similar(J)
@@ -408,10 +408,10 @@ end
 
 function oop_generate_W(alg,u,uprev,p,t,dt,f,uEltypeNoUnits)
   nf = nlsolve_f(f, alg)
-  islin = f isa Union{ODEFunction,SplitFunction} && islinear(nf.f)
+  islin = nf isa Union{ODEFunction,SplitFunction} && islinear(nf)
   if islin || DiffEqBase.has_jac(f)
     # get the operator
-    J = islin ? nf.f : f.jac(uprev, p, t)
+    J = islin ? nf : f.jac(uprev, p, t)
     if !isa(J, DiffEqBase.AbstractDiffEqLinearOperator)
       J = DiffEqArrayOperator(J)
     end
